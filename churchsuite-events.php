@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ChurchSuite Events
  * Description: Pulls ChurchSuite calendar JSON feed and exposes events for block-based templates.
- * Version: 0.1.2
+ * Version: 0.1.3
  * Author: All Saints Wick
  * License: GPL-2.0-or-later
  * Text Domain: churchsuite-events
