@@ -49,6 +49,13 @@ class ChurchSuite_Events_Plugin {
 	private $templates;
 
 	/**
+	 * Query Loop integration helper.
+	 *
+	 * @var ChurchSuite_Events_Query_Loop
+	 */
+	private $query_loop;
+
+	/**
 	 * Taxonomy helper.
 	 *
 	 * @var ChurchSuite_Events_Taxonomy
@@ -116,6 +123,10 @@ class ChurchSuite_Events_Plugin {
 
 		if ( ! $this->templates ) {
 			$this->templates = new ChurchSuite_Events_Templates();
+		}
+
+		if ( ! $this->query_loop ) {
+			$this->query_loop = new ChurchSuite_Events_Query_Loop();
 		}
 	}
 

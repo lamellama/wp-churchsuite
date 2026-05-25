@@ -22,8 +22,9 @@ class ChurchSuite_Events_Settings {
 	 */
 	public static function defaults() {
 		return array(
-			'account_id' => '',
-			'cache_ttl'  => HOUR_IN_SECONDS,
+			'account_id'        => '',
+			'cache_ttl'         => HOUR_IN_SECONDS,
+			'publish_lead_days' => 14,
 		);
 	}
 
@@ -88,6 +89,14 @@ class ChurchSuite_Events_Settings {
 			'churchsuite_events',
 			'churchsuite_events_main'
 		);
+
+		add_settings_field(
+			'churchsuite_events_publish_lead_days',
+			__( 'Publish Lead Time (days)', 'churchsuite-events' ),
+			array( $this, 'render_publish_lead_days_field' ),
+			'churchsuite_events',
+			'churchsuite_events_main'
+		);
 	}
 
 	/**
@@ -100,8 +109,9 @@ class ChurchSuite_Events_Settings {
 		$defaults = self::defaults();
 
 		$output = array(
-			'account_id' => isset( $input['account_id'] ) ? sanitize_text_field( $input['account_id'] ) : $defaults['account_id'],
-			'cache_ttl'  => isset( $input['cache_ttl'] ) ? max( 300, absint( $input['cache_ttl'] ) ) : $defaults['cache_ttl'],
+			'account_id'        => isset( $input['account_id'] ) ? sanitize_text_field( $input['account_id'] ) : $defaults['account_id'],
+			'cache_ttl'         => isset( $input['cache_ttl'] ) ? max( 300, absint( $input['cache_ttl'] ) ) : $defaults['cache_ttl'],
+			'publish_lead_days' => isset( $input['publish_lead_days'] ) ? max( 0, absint( $input['publish_lead_days'] ) ) : $defaults['publish_lead_days'],
 		);
 
 		return wp_parse_args( $output, $defaults );
@@ -132,6 +142,20 @@ class ChurchSuite_Events_Settings {
 		?>
 		<input name="<?php echo esc_attr( self::OPTION_KEY ); ?>[cache_ttl]" type="number" min="300" step="60" value="<?php echo esc_attr( $cache_ttl ); ?>" />
 		<p class="description"><?php esc_html_e( 'How long to cache ChurchSuite responses (seconds). Minimum 5 minutes.', 'churchsuite-events' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render publish lead time field.
+	 *
+	 * @return void
+	 */
+	public function render_publish_lead_days_field() {
+		$settings          = $this->get_settings();
+		$publish_lead_days = isset( $settings['publish_lead_days'] ) ? absint( $settings['publish_lead_days'] ) : self::defaults()['publish_lead_days'];
+		?>
+		<input name="<?php echo esc_attr( self::OPTION_KEY ); ?>[publish_lead_days]" type="number" min="0" step="1" value="<?php echo esc_attr( $publish_lead_days ); ?>" />
+		<p class="description"><?php esc_html_e( 'How many days before an event starts it should become publicly visible. Default: 14.', 'churchsuite-events' ); ?></p>
 		<?php
 	}
 

@@ -210,17 +210,28 @@ class ChurchSuite_Events_Sync {
 		$end       = $this->extract_value( $event, array( 'end_time', 'end', 'datetime_end', 'date_end', 'end_date' ) );
 		$timestamp = $this->parse_datetime( $start );
 
+		$excerpt = $this->extract_value( $event, array( 'summary', 'excerpt' ), '' );
+		if ( '' === trim( (string) $excerpt ) && $existing ) {
+			$existing_post = get_post( $existing );
+			if ( $existing_post && ! empty( $existing_post->post_excerpt ) ) {
+				$excerpt = $existing_post->post_excerpt;
+			}
+		}
+
 		$postarr = array(
 			'post_type'    => ChurchSuite_Events_CPT::POST_TYPE,
 			'post_title'   => $this->extract_value( $event, array( 'name', 'title' ), __( 'Untitled event', 'churchsuite-events' ) ),
 			'post_content' => $this->extract_value( $event, array( 'description', 'details', 'content' ), '' ),
-			'post_excerpt' => $this->extract_value( $event, array( 'summary', 'excerpt' ), '' ),
+			'post_excerpt' => $excerpt,
 			'post_status'  => 'publish',
 		);
 
 		if ( $timestamp ) {
-			$postarr['post_date']     = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $timestamp ) );
-			$postarr['post_date_gmt'] = gmdate( 'Y-m-d H:i:s', $timestamp );
+			$publish_timestamp = $this->get_publish_timestamp( $timestamp );
+			$postarr['edit_date']     = true;
+			$postarr['post_status']   = $publish_timestamp > time() ? 'future' : 'publish';
+			$postarr['post_date']     = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $publish_timestamp ) );
+			$postarr['post_date_gmt'] = gmdate( 'Y-m-d H:i:s', $publish_timestamp );
 		}
 
 		if ( $existing ) {
@@ -236,6 +247,7 @@ class ChurchSuite_Events_Sync {
 		}
 
 		update_post_meta( $post_id, ChurchSuite_Events_CPT::META_START, $start );
+		update_post_meta( $post_id, ChurchSuite_Events_CPT::META_START_TS, $timestamp ? $timestamp : '' );
 		update_post_meta( $post_id, ChurchSuite_Events_CPT::META_END, $end );
 		update_post_meta( $post_id, ChurchSuite_Events_CPT::META_LOCATION, $this->extract_value( $event, array( 'location', 'site', 'venue' ) ) );
 		$category_value   = $this->extract_value( $event, array( 'category', 'category_name' ) );
@@ -251,6 +263,22 @@ class ChurchSuite_Events_Sync {
 		$image_url     = $this->extract_image_url( $event );
 		$set_image     = $this->maybe_set_thumbnail( $post_id, $image_url );
 		$category_term = $this->assign_category_term( $post_id, $category_parsed['name'], $category_parsed['color'] );
+
+		// Fallback excerpt: if none set, use category excerpt when available.
+		if ( '' === trim( (string) $postarr['post_excerpt'] ) && $category_term ) {
+			$taxonomy = ChurchSuite_Events_Plugin::instance()->taxonomy();
+			if ( $taxonomy ) {
+				$category_excerpt = $taxonomy->get_excerpt( $category_term );
+				if ( '' !== $category_excerpt ) {
+					wp_update_post(
+						array(
+							'ID'           => $post_id,
+							'post_excerpt' => $category_excerpt,
+						)
+					);
+				}
+			}
+		}
 
 		// Fallback: if no featured image and the category has an image, use it.
 		if ( ! $set_image && ! has_post_thumbnail( $post_id ) && $category_term ) {
@@ -312,6 +340,18 @@ class ChurchSuite_Events_Sync {
 		$ttl = (int) $this->settings->get( 'cache_ttl', HOUR_IN_SECONDS );
 
 		return max( 300, $ttl );
+	}
+
+	/**
+	 * Calculate when an event should become visible.
+	 *
+	 * @param int $event_timestamp Event start timestamp.
+	 * @return int
+	 */
+	private function get_publish_timestamp( $event_timestamp ) {
+		$lead_days = max( 0, (int) $this->settings->get( 'publish_lead_days', 14 ) );
+
+		return max( 1, $event_timestamp - ( $lead_days * DAY_IN_SECONDS ) );
 	}
 
 	/**

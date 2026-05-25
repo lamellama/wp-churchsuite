@@ -20,6 +20,7 @@ class ChurchSuite_Events_Templates {
 		add_action( 'init', array( $this, 'register_pattern' ) );
 		add_action( 'init', array( $this, 'register_shortcodes' ) );
 		add_filter( 'post_thumbnail_id', array( $this, 'maybe_use_category_image' ), 10, 2 );
+		add_filter( 'get_the_excerpt', array( $this, 'maybe_use_category_excerpt' ), 10, 2 );
 		add_filter( 'single_template', array( $this, 'single_template' ) );
 		add_filter( 'archive_template', array( $this, 'archive_template' ) );
 	}
@@ -234,7 +235,7 @@ class ChurchSuite_Events_Templates {
 <!-- wp:heading {"textAlign":"left","level":3} -->
 <h3 class="wp-block-heading" id="churchsuite-events-heading">Upcoming events</h3>
 <!-- /wp:heading -->
-<!-- wp:query {"queryId":1,"query":{"perPage":6,"pages":0,"offset":0,"postType":"churchsuite_event","order":"asc","orderBy":"date"},"displayLayout":{"type":"list"},"align":"wide"} -->
+<!-- wp:query {"queryId":1,"query":{"perPage":6,"pages":0,"offset":0,"postType":"churchsuite_event","order":"asc","orderBy":"date","inherit":false,"churchsuiteUpcoming":true},"namespace":"churchsuite-events/upcoming","displayLayout":{"type":"list"},"align":"wide"} -->
 <div class="wp-block-query alignwide">
 <!-- wp:post-template -->
 <!-- wp:group {"style":{"spacing":{"margin":{"bottom":"16px"}}},"layout":{"type":"constrained"}} -->
@@ -304,5 +305,43 @@ HTML;
 		}
 
 		return $thumbnail_id;
+	}
+
+	/**
+	 * If no excerpt, fall back to first category excerpt for this CPT.
+	 *
+	 * @param string      $excerpt Current excerpt.
+	 * @param WP_Post|int $post    Post object or ID.
+	 * @return string
+	 */
+	public function maybe_use_category_excerpt( $excerpt, $post ) {
+		if ( ! empty( $excerpt ) ) {
+			return $excerpt;
+		}
+
+		$post_id = $post instanceof WP_Post ? $post->ID : $post;
+		if ( ! $post_id || get_post_type( $post_id ) !== ChurchSuite_Events_CPT::POST_TYPE ) {
+			return $excerpt;
+		}
+
+		$plugin   = ChurchSuite_Events_Plugin::instance();
+		$taxonomy = $plugin ? $plugin->taxonomy() : null;
+		if ( ! $taxonomy ) {
+			return $excerpt;
+		}
+
+		$terms = wp_get_object_terms( $post_id, ChurchSuite_Events_Taxonomy::TAXONOMY );
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			return $excerpt;
+		}
+
+		foreach ( $terms as $term ) {
+			$category_excerpt = $taxonomy->get_excerpt( $term->term_id );
+			if ( '' !== $category_excerpt ) {
+				return $category_excerpt;
+			}
+		}
+
+		return $excerpt;
 	}
 }

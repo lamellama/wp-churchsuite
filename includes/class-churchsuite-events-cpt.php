@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class ChurchSuite_Events_CPT {
 	const POST_TYPE          = 'churchsuite_event';
 	const META_START         = '_churchsuite_event_start';
+	const META_START_TS      = '_churchsuite_event_start_ts';
 	const META_END           = '_churchsuite_event_end';
 	const META_LOCATION      = '_churchsuite_event_location';
 	const META_CATEGORY      = '_churchsuite_event_category';
@@ -90,6 +91,12 @@ class ChurchSuite_Events_CPT {
 			self::META_START        => array(
 				'type'         => 'string',
 				'description'  => __( 'Event start datetime', 'churchsuite-events' ),
+				'show_in_rest' => true,
+				'single'       => true,
+			),
+			self::META_START_TS     => array(
+				'type'         => 'integer',
+				'description'  => __( 'Event start timestamp', 'churchsuite-events' ),
 				'show_in_rest' => true,
 				'single'       => true,
 			),

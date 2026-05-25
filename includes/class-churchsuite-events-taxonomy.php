@@ -16,8 +16,10 @@ class ChurchSuite_Events_Taxonomy {
 	const TAXONOMY           = 'churchsuite_category';
 	const META_IMAGE_ID      = '_churchsuite_category_image_id';
 	const META_COLOR         = '_churchsuite_category_color';
+	const META_EXCERPT       = '_churchsuite_category_excerpt';
 	const NONCE_FIELD        = 'churchsuite_category_image_nonce';
 	const MEDIA_FIELD_NAME   = 'churchsuite_category_image_id';
+	const EXCERPT_FIELD_NAME = 'churchsuite_category_excerpt';
 
 	/**
 	 * Hooks.
@@ -97,6 +99,11 @@ class ChurchSuite_Events_Taxonomy {
 			<button type="button" class="button churchsuite-category-image-remove" style="display:none;"><?php esc_html_e( 'Remove image', 'churchsuite-events' ); ?></button>
 			<?php wp_nonce_field( self::NONCE_FIELD, self::NONCE_FIELD ); ?>
 		</div>
+		<div class="form-field">
+			<label for="<?php echo esc_attr( self::EXCERPT_FIELD_NAME ); ?>"><?php esc_html_e( 'Category Excerpt', 'churchsuite-events' ); ?></label>
+			<textarea id="<?php echo esc_attr( self::EXCERPT_FIELD_NAME ); ?>" name="<?php echo esc_attr( self::EXCERPT_FIELD_NAME ); ?>" rows="4" cols="40"></textarea>
+			<p class="description"><?php esc_html_e( 'Used as a fallback excerpt for events in this category.', 'churchsuite-events' ); ?></p>
+		</div>
 		<?php
 	}
 
@@ -109,6 +116,7 @@ class ChurchSuite_Events_Taxonomy {
 	public function render_edit_field( $term ) {
 		$image_id  = (int) get_term_meta( $term->term_id, self::META_IMAGE_ID, true );
 		$image_url = $image_id ? wp_get_attachment_image_url( $image_id, 'medium' ) : '';
+		$excerpt   = (string) get_term_meta( $term->term_id, self::META_EXCERPT, true );
 		?>
 		<tr class="form-field term-group-wrap">
 			<th scope="row"><label for="<?php echo esc_attr( self::MEDIA_FIELD_NAME ); ?>"><?php esc_html_e( 'Category Image', 'churchsuite-events' ); ?></label></th>
@@ -122,6 +130,13 @@ class ChurchSuite_Events_Taxonomy {
 				<button type="button" class="button churchsuite-category-image-upload"><?php esc_html_e( 'Choose image', 'churchsuite-events' ); ?></button>
 				<button type="button" class="button churchsuite-category-image-remove" <?php echo $image_url ? '' : 'style="display:none;"'; ?>><?php esc_html_e( 'Remove image', 'churchsuite-events' ); ?></button>
 				<?php wp_nonce_field( self::NONCE_FIELD, self::NONCE_FIELD ); ?>
+			</td>
+		</tr>
+		<tr class="form-field term-group-wrap">
+			<th scope="row"><label for="<?php echo esc_attr( self::EXCERPT_FIELD_NAME ); ?>"><?php esc_html_e( 'Category Excerpt', 'churchsuite-events' ); ?></label></th>
+			<td>
+				<textarea id="<?php echo esc_attr( self::EXCERPT_FIELD_NAME ); ?>" name="<?php echo esc_attr( self::EXCERPT_FIELD_NAME ); ?>" rows="4" cols="40"><?php echo esc_textarea( $excerpt ); ?></textarea>
+				<p class="description"><?php esc_html_e( 'Used as a fallback excerpt for events in this category.', 'churchsuite-events' ); ?></p>
 			</td>
 		</tr>
 		<?php
@@ -143,6 +158,13 @@ class ChurchSuite_Events_Taxonomy {
 			update_term_meta( $term_id, self::META_IMAGE_ID, $image_id );
 		} else {
 			delete_term_meta( $term_id, self::META_IMAGE_ID );
+		}
+
+		$excerpt = isset( $_POST[ self::EXCERPT_FIELD_NAME ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ self::EXCERPT_FIELD_NAME ] ) ) : '';
+		if ( '' !== $excerpt ) {
+			update_term_meta( $term_id, self::META_EXCERPT, $excerpt );
+		} else {
+			delete_term_meta( $term_id, self::META_EXCERPT );
 		}
 	}
 
@@ -221,6 +243,21 @@ class ChurchSuite_Events_Taxonomy {
 		$url = wp_get_attachment_image_url( $image_id, $size );
 
 		return $url ? $url : '';
+	}
+
+	/**
+	 * Get the excerpt for a term.
+	 *
+	 * @param int $term_id Term ID.
+	 * @return string
+	 */
+	public function get_excerpt( $term_id ) {
+		$excerpt = get_term_meta( $term_id, self::META_EXCERPT, true );
+		if ( ! is_scalar( $excerpt ) ) {
+			return '';
+		}
+
+		return trim( (string) $excerpt );
 	}
 
 	/**
