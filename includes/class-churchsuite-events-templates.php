@@ -21,6 +21,7 @@ class ChurchSuite_Events_Templates {
 		add_action( 'init', array( $this, 'register_shortcodes' ) );
 		add_filter( 'post_thumbnail_id', array( $this, 'maybe_use_category_image' ), 10, 2 );
 		add_filter( 'get_the_excerpt', array( $this, 'maybe_use_category_excerpt' ), 10, 2 );
+		add_filter( 'render_block', array( $this, 'render_event_post_date' ), 10, 2 );
 		add_filter( 'single_template', array( $this, 'single_template' ) );
 		add_filter( 'archive_template', array( $this, 'archive_template' ) );
 	}
@@ -221,6 +222,64 @@ class ChurchSuite_Events_Templates {
 		}
 
 		return $template;
+	}
+
+	/**
+	 * Render the Post Date block as the event start date for ChurchSuite events.
+	 *
+	 * @param string $block_content Rendered block content.
+	 * @param array  $block         Parsed block data.
+	 * @return string
+	 */
+	public function render_event_post_date( $block_content, $block ) {
+		if ( 'core/post-date' !== ( $block['blockName'] ?? '' ) ) {
+			return $block_content;
+		}
+
+		$post_id = get_the_ID();
+		if ( ! $post_id || ChurchSuite_Events_CPT::POST_TYPE !== get_post_type( $post_id ) ) {
+			return $block_content;
+		}
+
+		$timestamp = (int) get_post_meta( $post_id, ChurchSuite_Events_CPT::META_START_TS, true );
+		if ( $timestamp <= 0 ) {
+			return $block_content;
+		}
+
+		$attrs  = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+		$format = ! empty( $attrs['format'] ) ? $attrs['format'] : get_option( 'date_format' );
+		$date   = wp_date( $format, $timestamp );
+
+		$classes = array( 'wp-block-post-date' );
+		if ( ! empty( $attrs['textAlign'] ) ) {
+			$classes[] = 'has-text-align-' . sanitize_html_class( $attrs['textAlign'] );
+		}
+		if ( ! empty( $attrs['fontSize'] ) ) {
+			$classes[] = 'has-' . sanitize_html_class( $attrs['fontSize'] ) . '-font-size';
+		}
+		if ( ! empty( $attrs['className'] ) ) {
+			$classes[] = sanitize_html_class( $attrs['className'] );
+		}
+
+		$time = sprintf(
+			'<time datetime="%1$s">%2$s</time>',
+			esc_attr( wp_date( DATE_W3C, $timestamp ) ),
+			esc_html( $date )
+		);
+
+		if ( ! empty( $attrs['isLink'] ) ) {
+			$time = sprintf(
+				'<a href="%1$s">%2$s</a>',
+				esc_url( get_permalink( $post_id ) ),
+				$time
+			);
+		}
+
+		return sprintf(
+			'<div class="%1$s">%2$s</div>',
+			esc_attr( implode( ' ', array_filter( $classes ) ) ),
+			$time
+		);
 	}
 
 	/**

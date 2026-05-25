@@ -228,10 +228,11 @@ class ChurchSuite_Events_Sync {
 
 		if ( $timestamp ) {
 			$publish_timestamp = $this->get_publish_timestamp( $timestamp );
+			$post_timestamp    = $this->get_post_date_timestamp( $publish_timestamp );
 			$postarr['edit_date']     = true;
-			$postarr['post_status']   = $publish_timestamp > time() ? 'future' : 'publish';
-			$postarr['post_date']     = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $publish_timestamp ) );
-			$postarr['post_date_gmt'] = gmdate( 'Y-m-d H:i:s', $publish_timestamp );
+			$postarr['post_status']   = $this->should_publish_now( $publish_timestamp ) ? 'publish' : 'future';
+			$postarr['post_date']     = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $post_timestamp ) );
+			$postarr['post_date_gmt'] = gmdate( 'Y-m-d H:i:s', $post_timestamp );
 		}
 
 		if ( $existing ) {
@@ -286,6 +287,63 @@ class ChurchSuite_Events_Sync {
 		}
 
 		return $existing ? true : $post_id;
+	}
+
+	/**
+	 * Recalculate publish dates and statuses for already-synced events.
+	 *
+	 * @return int Number of posts updated.
+	 */
+	public function refresh_publish_statuses() {
+		$query = new WP_Query(
+			array(
+				'post_type'              => ChurchSuite_Events_CPT::POST_TYPE,
+				'post_status'            => array( 'publish', 'future' ),
+				'posts_per_page'         => -1,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+				'meta_query'             => array(
+					array(
+						'key'     => ChurchSuite_Events_CPT::META_CHURCHSUITEID,
+						'compare' => 'EXISTS',
+					),
+					array(
+						'key'     => ChurchSuite_Events_CPT::META_START_TS,
+						'compare' => 'EXISTS',
+					),
+				),
+			)
+		);
+
+		$updated = 0;
+
+		foreach ( $query->posts as $post_id ) {
+			$event_timestamp = (int) get_post_meta( $post_id, ChurchSuite_Events_CPT::META_START_TS, true );
+			if ( $event_timestamp <= 0 ) {
+				continue;
+			}
+
+			$publish_timestamp = $this->get_publish_timestamp( $event_timestamp );
+			$post_timestamp    = $this->get_post_date_timestamp( $publish_timestamp );
+			$result            = wp_update_post(
+				array(
+					'ID'            => (int) $post_id,
+					'edit_date'     => true,
+					'post_status'   => $this->should_publish_now( $publish_timestamp ) ? 'publish' : 'future',
+					'post_date'     => get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $post_timestamp ) ),
+					'post_date_gmt' => gmdate( 'Y-m-d H:i:s', $post_timestamp ),
+				),
+				true
+			);
+
+			if ( ! is_wp_error( $result ) && $result ) {
+				++$updated;
+			}
+		}
+
+		return $updated;
 	}
 
 	/**
@@ -352,6 +410,36 @@ class ChurchSuite_Events_Sync {
 		$lead_days = max( 0, (int) $this->settings->get( 'publish_lead_days', 14 ) );
 
 		return max( 1, $event_timestamp - ( $lead_days * DAY_IN_SECONDS ) );
+	}
+
+	/**
+	 * Determine whether a calculated publish date is inside the visible window.
+	 *
+	 * @param int $publish_timestamp Calculated publish timestamp.
+	 * @return bool
+	 */
+	private function should_publish_now( $publish_timestamp ) {
+		$lead_days  = max( 0, (int) $this->settings->get( 'publish_lead_days', 14 ) );
+		$window_end = current_datetime()->setTime( 23, 59, 59 )->modify( '+' . $lead_days . ' days' )->getTimestamp();
+
+		return $publish_timestamp <= $window_end;
+	}
+
+	/**
+	 * Get a WordPress-safe post date timestamp for the desired visibility state.
+	 *
+	 * WordPress coerces published posts with future post dates back to scheduled,
+	 * so visible events need a publish date no later than now.
+	 *
+	 * @param int $publish_timestamp Calculated publish timestamp.
+	 * @return int
+	 */
+	private function get_post_date_timestamp( $publish_timestamp ) {
+		if ( $this->should_publish_now( $publish_timestamp ) ) {
+			return min( $publish_timestamp, time() );
+		}
+
+		return $publish_timestamp;
 	}
 
 	/**

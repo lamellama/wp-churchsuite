@@ -84,6 +84,7 @@ class ChurchSuite_Events_Plugin {
 		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
 		add_action( 'init', array( $this, 'init_components' ), 5 );
 		add_action( 'init', array( $this, 'maybe_flush_rewrite_once' ), 20 );
+		add_action( 'update_option_' . ChurchSuite_Events_Settings::OPTION_KEY, array( $this, 'handle_settings_updated' ), 10, 3 );
 	}
 
 	/**
@@ -183,6 +184,33 @@ class ChurchSuite_Events_Plugin {
 	 */
 	public function taxonomy() {
 		return $this->taxonomy;
+	}
+
+	/**
+	 * Refresh publish dates/statuses when the lead time setting changes.
+	 *
+	 * @param mixed  $old_value Previous option value.
+	 * @param mixed  $value     New option value.
+	 * @param string $option    Option name.
+	 * @return void
+	 */
+	public function handle_settings_updated( $old_value, $value, $option ) {
+		unset( $option );
+
+		$old_settings = wp_parse_args( is_array( $old_value ) ? $old_value : array(), ChurchSuite_Events_Settings::defaults() );
+		$new_settings = wp_parse_args( is_array( $value ) ? $value : array(), ChurchSuite_Events_Settings::defaults() );
+
+		if ( (int) $old_settings['publish_lead_days'] === (int) $new_settings['publish_lead_days'] ) {
+			return;
+		}
+
+		if ( ! $this->sync ) {
+			$this->init_components();
+		}
+
+		if ( $this->sync ) {
+			$this->sync->refresh_publish_statuses();
+		}
 	}
 
 	/**

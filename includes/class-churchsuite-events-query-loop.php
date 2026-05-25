@@ -42,8 +42,10 @@ class ChurchSuite_Events_Query_Loop {
 	public function filter_query_loop_vars( $query, $block ) {
 		$block_query = isset( $block->context['query'] ) && is_array( $block->context['query'] ) ? $block->context['query'] : array();
 		$namespace   = isset( $block->parsed_block['attrs']['namespace'] ) ? $block->parsed_block['attrs']['namespace'] : '';
+		$is_event_query = ChurchSuite_Events_CPT::POST_TYPE === ( $query['post_type'] ?? '' )
+			|| ChurchSuite_Events_CPT::POST_TYPE === ( $block_query['postType'] ?? '' );
 
-		$query = $this->normalize_event_ordering( $query );
+		$query = $this->normalize_event_ordering( $query, $is_event_query );
 
 		if ( ! $this->is_upcoming_query( $block_query, $namespace ) ) {
 			return $query;
@@ -62,7 +64,7 @@ class ChurchSuite_Events_Query_Loop {
 	public function filter_rest_query_vars( $args, $request ) {
 		$namespace = $request->get_param( 'namespace' );
 		$flag      = $request->get_param( self::QUERY_FLAG );
-		$args      = $this->normalize_event_ordering( $args );
+		$args      = $this->normalize_event_ordering( $args, true );
 
 		if ( self::VARIATION_NAMESPACE !== $namespace && ! rest_sanitize_boolean( $flag ) ) {
 			return $args;
@@ -83,7 +85,7 @@ class ChurchSuite_Events_Query_Loop {
 		wp_enqueue_script(
 			$handle,
 			$src,
-			array( 'wp-blocks', 'wp-dom-ready', 'wp-hooks' ),
+			array( 'wp-blocks', 'wp-block-editor', 'wp-components', 'wp-compose', 'wp-dom-ready', 'wp-element', 'wp-hooks', 'wp-i18n' ),
 			CHURCHSUITE_EVENTS_VERSION,
 			true
 		);
@@ -154,8 +156,8 @@ class ChurchSuite_Events_Query_Loop {
 	 * @param array $query Query vars.
 	 * @return array
 	 */
-	private function normalize_event_ordering( $query ) {
-		if ( ChurchSuite_Events_CPT::POST_TYPE !== ( $query['post_type'] ?? '' ) ) {
+	private function normalize_event_ordering( $query, $is_event_query = false ) {
+		if ( ! $is_event_query && ChurchSuite_Events_CPT::POST_TYPE !== ( $query['post_type'] ?? '' ) ) {
 			return $query;
 		}
 
