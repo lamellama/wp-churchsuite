@@ -46,6 +46,7 @@ class ChurchSuite_Events_Query_Loop {
 			|| ChurchSuite_Events_CPT::POST_TYPE === ( $block_query['postType'] ?? '' );
 
 		$query = $this->normalize_event_ordering( $query, $is_event_query );
+		$query = $this->apply_category_filter( $query, $is_event_query );
 
 		if ( ! $this->is_upcoming_query( $block_query, $namespace ) ) {
 			return $query;
@@ -65,6 +66,7 @@ class ChurchSuite_Events_Query_Loop {
 		$namespace = $request->get_param( 'namespace' );
 		$flag      = $request->get_param( self::QUERY_FLAG );
 		$args      = $this->normalize_event_ordering( $args, true );
+		$args      = $this->apply_category_filter( $args, true );
 
 		if ( self::VARIATION_NAMESPACE !== $namespace && ! rest_sanitize_boolean( $flag ) ) {
 			return $args;
@@ -148,6 +150,70 @@ class ChurchSuite_Events_Query_Loop {
 		$query['meta_query'] = $meta_query;
 
 		return $query;
+	}
+
+	/**
+	 * Apply the URL category filter to ChurchSuite event queries.
+	 *
+	 * @param array $query          Query vars.
+	 * @param bool  $is_event_query Whether this is a ChurchSuite event query.
+	 * @return array
+	 */
+	private function apply_category_filter( $query, $is_event_query ) {
+		if ( ! $is_event_query ) {
+			return $query;
+		}
+
+		$term = $this->get_requested_category_term();
+		if ( ! $term ) {
+			return $query;
+		}
+
+		$tax_query = isset( $query['tax_query'] ) && is_array( $query['tax_query'] ) ? $query['tax_query'] : array();
+		$tax_query[] = array(
+			'taxonomy' => ChurchSuite_Events_Taxonomy::TAXONOMY,
+			'field'    => 'term_id',
+			'terms'    => array( (int) $term->term_id ),
+		);
+
+		$query['tax_query'] = $tax_query;
+
+		return $query;
+	}
+
+	/**
+	 * Resolve the requested category slug to a valid term.
+	 *
+	 * @return WP_Term|null
+	 */
+	private function get_requested_category_term() {
+		$key = '';
+		if ( isset( $_GET[ ChurchSuite_Events_Category_Filter_Block::QUERY_PARAM ] ) ) {
+			$key = ChurchSuite_Events_Category_Filter_Block::QUERY_PARAM;
+		} elseif ( isset( $_GET[ ChurchSuite_Events_Category_Filter_Block::LEGACY_QUERY_PARAM ] ) ) {
+			$key = ChurchSuite_Events_Category_Filter_Block::LEGACY_QUERY_PARAM;
+		}
+
+		if ( '' === $key ) {
+			return null;
+		}
+
+		$value = wp_unslash( $_GET[ $key ] );
+		if ( is_array( $value ) ) {
+			return null;
+		}
+
+		$slug = sanitize_title( $value );
+		if ( '' === $slug ) {
+			return null;
+		}
+
+		$term = get_term_by( 'slug', $slug, ChurchSuite_Events_Taxonomy::TAXONOMY );
+		if ( ! $term || is_wp_error( $term ) ) {
+			return null;
+		}
+
+		return $term;
 	}
 
 	/**

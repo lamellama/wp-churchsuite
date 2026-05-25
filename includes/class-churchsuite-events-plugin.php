@@ -56,6 +56,13 @@ class ChurchSuite_Events_Plugin {
 	private $query_loop;
 
 	/**
+	 * Category filter block helper.
+	 *
+	 * @var ChurchSuite_Events_Category_Filter_Block
+	 */
+	private $category_filter_block;
+
+	/**
 	 * Taxonomy helper.
 	 *
 	 * @var ChurchSuite_Events_Taxonomy
@@ -128,6 +135,10 @@ class ChurchSuite_Events_Plugin {
 
 		if ( ! $this->query_loop ) {
 			$this->query_loop = new ChurchSuite_Events_Query_Loop();
+		}
+
+		if ( ! $this->category_filter_block ) {
+			$this->category_filter_block = new ChurchSuite_Events_Category_Filter_Block();
 		}
 	}
 

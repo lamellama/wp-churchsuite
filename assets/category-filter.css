@@ -1,0 +1,26 @@
+.churchsuite-event-category-filter {
+	margin: 0 0 1.5rem;
+}
+
+.churchsuite-event-category-filter__label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+}
+
+.churchsuite-event-category-filter__controls {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+}
+
+.churchsuite-event-category-filter__select {
+	min-height: 2.5rem;
+	min-width: min(100%, 18rem);
+}
+
+.churchsuite-event-category-filter__submit {
+	min-height: 2.5rem;
+	padding: 0.5rem 1rem;
+}

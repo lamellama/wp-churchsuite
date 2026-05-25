@@ -12,6 +12,7 @@ Pull ChurchSuite calendar JSON into WordPress and surface events via a custom po
 ## Using in the Site Editor
 - Add the Query Loop variation **“Upcoming ChurchSuite Events”** to show only events from today onward, ordered by event date. Use the Query Loop's items-per-page control for the “next x events” count.
 - Or add a standard Query Loop block and choose the `churchsuite_event` post type if you need a general-purpose event listing.
+- Add the **ChurchSuite Event Category Filter** block above a ChurchSuite event Query Loop to filter events with the `churchsuite_event_category` URL parameter.
 - Featured images: if the ChurchSuite feed provides an image URL, the plugin will download it and set it as the event’s featured image (skips if you already set one).
 - Categories: events map to a `ChurchSuite Categories` taxonomy. You can edit these terms under Events → ChurchSuite Categories and set a category image (term meta).
 - If an event has no featured image, the Query Loop and single views will automatically fall back to the first assigned category image.
